@@ -2,9 +2,11 @@ using PaymentChallenge.Business;
 using PaymentChallenge.Config;
 using PaymentChallenge.Contract.DB;
 using PaymentChallenge.Contract.ExternalServices;
+using PaymentChallenge.Middleware;
 using PaymentChallenge.Repository.Command;
 using PaymentChallenge.Repository.DB;
 using PaymentChallenge.Repository.ExternalServices;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +21,8 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", b => b.AllowAnyHeader().AllowAnyOrigin().AllowAnyMethod());
 });
+
+builder.Host.UseSerilog((ctx, logerConfig) => logerConfig.WriteTo.Console().ReadFrom.Configuration(ctx.Configuration));
 
 builder.Services.AddAutoMapper(typeof(MapperConfig));
 
@@ -37,6 +41,10 @@ var app = builder.Build();
 //}
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseMiddleware<ExceptionMiddleware>();
+
+app.UseSerilogRequestLogging();
 
 app.UseHttpsRedirection();
 

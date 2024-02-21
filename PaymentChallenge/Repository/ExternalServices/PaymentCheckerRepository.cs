@@ -25,9 +25,7 @@ namespace PaymentChallenge.Repository.ExternalServices
             }
             catch (HttpRequestException ex)
             {
-                // Maneja cualquier error de solicitud HTTP aquí
-                Console.WriteLine($"Error al realizar la solicitud HTTP: {ex.Message}");
-                return false;
+                throw new PaymentChallenge.Exceptions.MyHttpRequestException(nameof(IsPaymentValid), amount);
             }
     }
     }

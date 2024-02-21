@@ -1,12 +1,12 @@
 ﻿using PaymentChallenge.Contract.DB;
 using PaymentChallenge.Data;
 using PaymentChallenge.Data.Enum;
+using PaymentChallenge.Exceptions;
 using System.Data;
 using System.Data.SqlClient;
 
 namespace PaymentChallenge.Repository.DB
 {
-    //public class PaymentRepository : GenericRepository<Payment>, IPaymentRepository
     public class PaymentRepository : IPaymentRepository
     {
         private SqlCommand _cmd = new SqlCommand();
@@ -35,7 +35,7 @@ namespace PaymentChallenge.Repository.DB
             }
             catch (Exception)
             {
-                return false;
+                throw new Exceptions.SqlException(nameof(Exists), paymentCode);
             }
             finally
             {
@@ -63,7 +63,7 @@ namespace PaymentChallenge.Repository.DB
             }
             catch (Exception)
             {
-                return false;
+                throw new Exceptions.SqlException(nameof(Exists), paymentCode);
             }
             finally
             {
@@ -98,7 +98,7 @@ namespace PaymentChallenge.Repository.DB
             }
             catch (Exception)
             {
-                return null;
+                throw new Exceptions.SqlException(nameof(Exists), paymentCode);
             }
             finally
             {

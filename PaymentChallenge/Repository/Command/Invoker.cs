@@ -33,6 +33,7 @@ namespace PaymentChallenge.Repository.Command
                 catch (System.Exception ex)
                 {
                     trans.Rollback();
+                    throw new Exceptions.SqlException(nameof(ExecuteCommands), _commands);
                 }
                 finally
                 {

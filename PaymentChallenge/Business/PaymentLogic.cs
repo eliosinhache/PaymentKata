@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using PaymentChallenge.Contract.DB;
 using PaymentChallenge.Contract.ExternalServices;
 using PaymentChallenge.Data;
+using PaymentChallenge.Exceptions;
 using PaymentChallenge.Model;
 using PaymentChallenge.Model.Response;
 using PaymentChallenge.Repository.Command;
@@ -27,56 +28,37 @@ namespace PaymentChallenge.Business
 
         public ResultResponse NewPayment(Payment payment)
         {
-            //Invoker _invoker = new Invoker(_configuration);
             ResultResponse response = new ResultResponse() { Success = false, Error = ""};
             Payment newPayment = payment;
-            if (!_paymentRepository.Exists(newPayment.PaymentCode, newPayment.Amount))
-            {
-                DateTime date = DateTime.Now;
-                newPayment.PaymentCode = $"{newPayment.ClientId}{date.Day}{date.Month}{date.Year}";
-                //newPayment.OperationType = Data.Enum.OperationType.WaitingConfirmation;
-            }
+            newPayment.PaymentCode = $"{newPayment.ClientId}{DateTime.Now.Day}{DateTime.Now.Month}{DateTime.Now.Year}";
             _invoker.AddCommand(new NewPaymentRecord(newPayment, Data.Enum.OperationType.WaitingConfirmation));
 
-            try
-            {
-                if (!_paymentCheckerService.IsPaymentValid(newPayment.Amount).Result) {
-                    response.Error = "Pago Denegado";
-                    newPayment.OperationType = Data.Enum.OperationType.Denied;
-                    _invoker.AddCommand(new DisabledPaymentRecord(newPayment));
-                    _invoker.AddCommand(new NewPaymentRecord(newPayment, Data.Enum.OperationType.Denied));
-                    _invoker.ExecuteCommands();
-                    return response;
-                }
-                newPayment.OperationType = Data.Enum.OperationType.Approved;
+            if (!_paymentCheckerService.IsPaymentValid(newPayment.Amount).Result) {
+                response.Error = "Pago Denegado";
+                newPayment.OperationType = Data.Enum.OperationType.Denied;
                 _invoker.AddCommand(new DisabledPaymentRecord(newPayment));
-                _invoker.AddCommand(new NewPaymentRecord(newPayment, Data.Enum.OperationType.Approved));
-                _invoker.AddCommand(new NewApprovedPaymentRecord(newPayment));
+                _invoker.AddCommand(new NewPaymentRecord(newPayment, Data.Enum.OperationType.Denied));
+                _invoker.ExecuteCommands();
+                return response;
             }
-            catch (Exception)
-            {
-                _invoker.AddCommand(new DisabledPaymentRecord(newPayment));
-                _invoker.AddCommand(new NewPaymentRecord(newPayment, Data.Enum.OperationType.WaitingConfirmation));
-            }
+            newPayment.OperationType = Data.Enum.OperationType.Approved;
+            _invoker.AddCommand(new DisabledPaymentRecord(newPayment));
+            _invoker.AddCommand(new NewPaymentRecord(newPayment, Data.Enum.OperationType.Approved));
+            _invoker.AddCommand(new NewApprovedPaymentRecord(newPayment));
             
             _invoker.ExecuteCommands();
 
-            if (!_invoker.IsTransactionComplete())
-                response.Error = "Error al guardar el pago";
-            else
-                response.Success = true;
+            response.Success = true;
             response.Payment = _mapper.Map<PaymentResponse>(newPayment);
             return response;
         }
 
         public ResultResponse ConfirmPayment(Payment paymentToConfirm)
         {
-            //Invoker _invoker = new Invoker(_configuration);
             ResultResponse response = new ResultResponse() { Success = false, Error = "" };
 
             if (!_paymentRepository.Exists(paymentToConfirm.PaymentCode, paymentToConfirm.Amount)) {
-                response.Error = "No existe pago sin confirmar";
-                return response;
+                throw new NotFoundException(nameof(ConfirmPayment), paymentToConfirm);
             }
             if (paymentToConfirm.OperationType == Data.Enum.OperationType.Undo || paymentToConfirm.OperationType == Data.Enum.OperationType.Cancelled)
             {
